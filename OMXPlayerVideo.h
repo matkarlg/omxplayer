@@ -83,6 +83,7 @@ protected:
   bool                      m_flush;
   unsigned int              m_cached_size;
   bool                      m_hdmi_clock_sync;
+  bool                      m_no_scaling;
   double                    m_iVideoDelay;
   double                    m_pts;
   bool                      m_syncclock;
@@ -101,7 +102,7 @@ private:
 public:
   OMXPlayerVideo();
   ~OMXPlayerVideo();
-  bool Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinterlace, bool mpeg, bool hdmi_clock_sync, bool use_thread);
+  bool Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinterlace, bool mpeg, bool hdmi_clock_sync, bool no_scaling, bool use_thread);
   bool Close();
   void Output(double pts);
   bool Decode(OMXPacket *pkt);

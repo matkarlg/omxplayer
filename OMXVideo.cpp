@@ -34,6 +34,8 @@
 #include <sys/time.h>
 #include <inttypes.h>
 
+#include <bcm_host.h>
+
 #ifdef CLASSNAME
 #undef CLASSNAME
 #endif
@@ -129,7 +131,7 @@ bool COMXVideo::SendDecoderConfig()
   return true;
 }
 
-bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, bool hdmi_clock_sync)
+bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, bool hdmi_clock_sync, bool no_scaling)
 {
   OMX_ERRORTYPE omx_err   = OMX_ErrorNone;
   std::string decoder_name;
@@ -574,11 +576,31 @@ bool COMXVideo::Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace, b
   OMX_CONFIG_DISPLAYREGIONTYPE configDisplay;
   OMX_INIT_STRUCTURE(configDisplay);
   configDisplay.nPortIndex = m_omx_render.GetInputPort();
+  int set = 0;
 
-  configDisplay.set      = OMX_DISPLAY_SET_PIXEL;
-  configDisplay.pixel_x  = hints.pixel_x;
-  configDisplay.pixel_y  = hints.pixel_y;
+  if (no_scaling)
+  {
+    uint32_t screen_width, screen_height;
+    if (graphics_get_display_size(0, &screen_width, &screen_height) < 0)
+      return false;
 
+    set                              |= OMX_DISPLAY_SET_DEST_RECT;
+    configDisplay.dest_rect.x_offset  = (screen_width - m_decoded_width)/2;
+    configDisplay.dest_rect.y_offset  = (screen_height - m_decoded_height)/2;
+    configDisplay.dest_rect.width     = m_decoded_width;
+    configDisplay.dest_rect.height    = m_decoded_height;
+
+    set                              |= OMX_DISPLAY_SET_FULLSCREEN;
+    configDisplay.fullscreen          = OMX_FALSE;
+  }
+  else
+  {
+    set                   |= OMX_DISPLAY_SET_PIXEL;
+    configDisplay.pixel_x  = hints.pixel_x;
+    configDisplay.pixel_y  = hints.pixel_y;
+  }
+
+  configDisplay.set = (OMX_DISPLAYSETTYPE) set;
   omx_err = m_omx_render.SetConfig(OMX_IndexConfigDisplayRegion, &configDisplay);
   if(omx_err != OMX_ErrorNone)
     return false;

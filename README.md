@@ -58,6 +58,7 @@ Using OMXPlayer
                                    (default: /usr/share/fonts/truetype/freefont/FreeSans.ttf)
     -g / --fontsize size           font size as thousandths of screen height
                                    (default: 55)
+    -j / --noscaling               do not perform any video scaling
 
 For example:
 

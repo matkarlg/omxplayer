@@ -49,7 +49,7 @@ public:
 
   // Required overrides
   bool SendDecoderConfig();
-  bool Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace = false, bool hdmi_clock_sync = false);
+  bool Open(COMXStreamInfo &hints, OMXClock *clock, bool deinterlace = false, bool hdmi_clock_sync = false, bool no_scaling = false);
   void Close(void);
   unsigned int GetFreeSpace();
   unsigned int GetSize();

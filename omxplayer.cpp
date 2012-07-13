@@ -77,6 +77,7 @@ COMXStreamInfo    m_hints_audio;
 COMXStreamInfo    m_hints_video;
 OMXPacket         *m_omx_pkt            = NULL;
 bool              m_hdmi_clock_sync     = false;
+bool              m_no_scaling          = false;
 bool              m_stop                = false;
 bool              m_show_subtitle       = false;
 int               m_subtitle_index      = 0;
@@ -125,6 +126,7 @@ void print_usage()
   printf("                                        (default: /usr/share/fonts/truetype/freefont/FreeSans.ttf)\n");
   printf("         -g / --fontsize size           font size as thousandths of screen height\n");
   printf("                                        (default: 55)\n");
+  printf("         -j / --noscaling               do not perform any video scaling\n");
 }
 
 void SetSpeed(int iSpeed)
@@ -321,11 +323,12 @@ int main(int argc, char *argv[])
     { "sid",          required_argument,  NULL,          't' },
     { "font",         required_argument,  NULL,          'f' },
     { "fontsize",     required_argument,  NULL,          'g' },
+    { "noscaling",    no_argument,        NULL,          'j' },
     { 0, 0, 0, 0 }
   };
 
   int c;
-  while ((c = getopt_long(argc, argv, "wihn:o:cslpd3yt:rf:g:", longopts, NULL)) != -1)  
+  while ((c = getopt_long(argc, argv, "wihn:o:cslpd3yt:rf:g:j", longopts, NULL)) != -1)  
   {
     switch (c) 
     {
@@ -383,6 +386,9 @@ int main(int argc, char *argv[])
             m_font_size = thousands*0.001f;
         }
         break;
+      case 'j':
+        m_no_scaling = true;
+        break;
       case 0:
         break;
       case 'h':
@@ -438,7 +444,7 @@ int main(int argc, char *argv[])
     m_omx_reader.SetActiveStream(OMXSTREAM_AUDIO, m_audio_index_use);
           
   if(m_has_video && !m_player_video.Open(m_hints_video, m_av_clock, m_Deinterlace,  m_bMpeg, 
-                                         m_hdmi_clock_sync, m_thread_player))
+                                         m_hdmi_clock_sync, m_no_scaling, m_thread_player))
     goto do_exit;
 
   if(m_has_video && m_refresh)
@@ -639,7 +645,7 @@ int main(int argc, char *argv[])
 
       m_player_video.Close();
       if(m_has_video && !m_player_video.Open(m_hints_video, m_av_clock, m_Deinterlace,  m_bMpeg, 
-                                         m_hdmi_clock_sync, m_thread_player))
+                                         m_hdmi_clock_sync, m_no_scaling, m_thread_player))
         goto do_exit;
 
       m_av_clock->OMXStart();

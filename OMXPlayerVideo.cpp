@@ -53,6 +53,7 @@ OMXPlayerVideo::OMXPlayerVideo()
   m_flush         = false;
   m_cached_size   = 0;
   m_hdmi_clock_sync = false;
+  m_no_scaling    = false;
   m_iVideoDelay   = 0;
   m_pts           = 0;
   m_syncclock     = true;
@@ -114,7 +115,7 @@ void OMXPlayerVideo::UnLockSubtitles()
     pthread_mutex_unlock(&m_lock_subtitle);
 }
 
-bool OMXPlayerVideo::Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinterlace, bool mpeg, bool hdmi_clock_sync, bool use_thread)
+bool OMXPlayerVideo::Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinterlace, bool mpeg, bool hdmi_clock_sync, bool no_scaling, bool use_thread)
 {
   if (!m_dllAvUtil.Load() || !m_dllAvCodec.Load() || !m_dllAvFormat.Load() || !av_clock)
     return false;
@@ -137,6 +138,7 @@ bool OMXPlayerVideo::Open(COMXStreamInfo &hints, OMXClock *av_clock, bool deinte
   m_cached_size = 0;
   m_iVideoDelay = 0;
   m_hdmi_clock_sync = hdmi_clock_sync;
+  m_no_scaling  = no_scaling;
   m_pts         = 0;
   m_syncclock   = true;
   m_speed       = DVD_PLAYSPEED_NORMAL;
@@ -519,7 +521,7 @@ bool OMXPlayerVideo::OpenDecoder()
   m_frametime = (double)DVD_TIME_BASE / m_fps;
 
   m_decoder = new COMXVideo();
-  if(!m_decoder->Open(m_hints, m_av_clock, m_Deinterlace, m_hdmi_clock_sync))
+  if(!m_decoder->Open(m_hints, m_av_clock, m_Deinterlace, m_hdmi_clock_sync, m_no_scaling))
   {
     CloseDecoder();
     return false;
