@@ -39,11 +39,6 @@
 
 #include <deque>
 #include <sys/types.h>
-
-#include "OMXOverlayCodec.h"
-#include "OMXOverlayText.h"
-#include "OMXOverlayCodecText.h"
-
 #include <string>
 
 using namespace std;
@@ -57,9 +52,7 @@ class OMXPlayerVideo : public CThread
 protected:
   AVStream                  *m_pStream;
   int                       m_stream_id;
-  std::deque<OMXPacket *>   m_subtitle_packets;
   std::deque<OMXPacket *>   m_packets;
-  std::deque<COMXOverlay *> m_overlays;
   DllAvUtil                 m_dllAvUtil;
   DllAvCodec                m_dllAvCodec;
   DllAvFormat               m_dllAvFormat;
@@ -89,15 +82,11 @@ protected:
   bool                      m_syncclock;
   int                       m_speed;
   double                    m_FlipTimeStamp; // time stamp of last flippage. used to play at a forced framerate
-  double                    m_iSubtitleDelay;
-  COMXOverlayCodec          *m_pSubtitleCodec;
 
   void Lock();
   void UnLock();
   void LockDecoder();
   void UnLockDecoder();
-  void LockSubtitles();
-  void UnLockSubtitles();
 private:
 public:
   OMXPlayerVideo();
@@ -107,7 +96,6 @@ public:
   void Output(double pts);
   bool Decode(OMXPacket *pkt);
   void Process();
-  void FlushSubtitles();
   void Flush();
   bool AddPacket(OMXPacket *pkt);
   bool OpenDecoder();
@@ -121,8 +109,5 @@ public:
   void SetDelay(double delay) { m_iVideoDelay = delay; }
   double GetDelay() { return m_iVideoDelay; }
   void SetSpeed(int iSpeed);
-  double GetSubtitleDelay()                                { return m_iSubtitleDelay; }
-  void SetSubtitleDelay(double delay)                      { m_iSubtitleDelay = delay; }
-  std::string GetText();
 };
 #endif

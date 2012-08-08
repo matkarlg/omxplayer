@@ -293,7 +293,6 @@ bool OMXClock::OMXInitialize(bool has_video, bool has_audio)
   if(m_has_video)
   {
     clock.nWaitMask |= OMX_CLOCKPORT1;
-    clock.nWaitMask |= OMX_CLOCKPORT2;
   }
 
   omx_err = OMX_SetConfig(m_omx_clock.GetComponent(), OMX_IndexConfigTimeClockState, &clock);
@@ -493,7 +492,6 @@ bool OMXClock::OMXReset(bool lock /* = true */)
     if(m_has_video)
     {
       clock.nWaitMask |= OMX_CLOCKPORT1;
-      clock.nWaitMask |= OMX_CLOCKPORT2;
     }
 
     omx_err = OMX_SetConfig(m_omx_clock.GetComponent(), OMX_IndexConfigTimeClockState, &clock);
@@ -712,7 +710,6 @@ bool OMXClock::OMXWaitStart(double pts, bool lock /* = true */)
     if(m_has_video)
     {
       clock.nWaitMask |= OMX_CLOCKPORT1;
-      clock.nWaitMask |= OMX_CLOCKPORT2;
     }
   }
 

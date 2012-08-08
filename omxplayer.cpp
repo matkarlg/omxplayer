@@ -95,16 +95,24 @@ float             m_display_aspect      = 0.0f;
 enum{ERROR=-1,SUCCESS,ONEBYTE};
 
 static struct termios orig_termios;
-static void restore_termios (int status, void * arg)
+static void restore_termios()
 {
     tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
 }
 
 void sig_handler(int s)
 {
-  printf("strg-c catched\n");
-  signal(SIGINT, SIG_DFL);
-  g_abort = true;
+  switch(s)
+  {
+    case SIGINT:
+      printf("strg-c catched\n");
+      signal(SIGINT, SIG_DFL);
+      g_abort = true;
+      break;
+    case SIGABRT:
+      restore_termios();
+      break;
+  }
 }
 
 void print_usage()
@@ -283,8 +291,6 @@ void SetVideoMode(int width, int height, float fps, bool is3d)
 
 int main(int argc, char *argv[])
 {
-  signal(SIGINT, sig_handler);
-
   struct termios new_termios;
 
   tcgetattr(STDIN_FILENO, &orig_termios);
@@ -294,10 +300,9 @@ int main(int argc, char *argv[])
   new_termios.c_cflag     |= HUPCL;
   new_termios.c_cc[VMIN]  = 0;
 
-  std::string last_sub = "";
-
   tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
-  on_exit(restore_termios, &orig_termios);
+  signal(SIGABRT, sig_handler);
+  atexit(restore_termios);
 
   std::string            m_filename;
   double                m_incr                = 0;
@@ -417,6 +422,8 @@ int main(int argc, char *argv[])
   m_filename = argv[optind];
 
   CLog::Init("./");
+
+  signal(SIGINT, sig_handler);
 
   g_RBP.Initialize();
   g_OMX.Initialize();
