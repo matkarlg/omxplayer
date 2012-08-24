@@ -55,6 +55,7 @@ Using OMXPlayer
              -y / --hdmiclocksync           adjust display refresh rate to match video
              -t / --sid index               show subtitle with index
              -r / --refresh                 adjust framerate/resolution to video
+                  --subtitles path          external subtitles in UTF-8 srt format
                   --font path               subtitle font
                                             (default: /usr/share/fonts/truetype/freefont/FreeSans.ttf)
                   --font-size size          font size as thousandths of screen height

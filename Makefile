@@ -28,6 +28,7 @@ SRC=linux/XMemUtils.cpp \
 		OMXPlayerSubtitles.cpp \
 		SubtitleRenderer.cpp \
 		Unicode.cpp \
+		Srt.cpp \
 		omxplayer.cpp \
 
 OBJS+=$(filter %.o,$(SRC:.cpp=.o))

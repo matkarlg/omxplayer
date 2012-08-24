@@ -22,13 +22,15 @@
 #include "OMXReader.h"
 #include "OMXClock.h"
 #include "OMXOverlayCodecText.h"
+#include "Subtitle.h"
+#include "Mailbox.h"
 
 #include <boost/config.hpp>
 #include <boost/circular_buffer.hpp>
 #include <atomic>
 #include <string>
 #include <deque>
-#include <mutex>
+#include <vector>
 
 class OMXPlayerSubtitles : public OMXThread
 {
@@ -37,34 +39,53 @@ public:
   OMXPlayerSubtitles& operator=(const OMXPlayerSubtitles&) = delete;
   OMXPlayerSubtitles() BOOST_NOEXCEPT;
   ~OMXPlayerSubtitles() BOOST_NOEXCEPT;
-  bool Open(const std::string& font_path, float font_size, bool centered, OMXClock* clock) BOOST_NOEXCEPT;
+  bool Open(size_t stream_count,
+            std::vector<Subtitle>&& external_subtitles,
+            const std::string& font_path,
+            float font_size,
+            bool centered,
+            OMXClock* clock) BOOST_NOEXCEPT;
   void Close() BOOST_NOEXCEPT;
   void Flush() BOOST_NOEXCEPT;
-  bool AddPacket(OMXPacket *pkt) BOOST_NOEXCEPT;
+  void SetVisible(bool visible) BOOST_NOEXCEPT;
+  void SetActiveStream(size_t index) BOOST_NOEXCEPT;
+  void SetDelay(int value) BOOST_NOEXCEPT;
+  bool AddPacket(OMXPacket *pkt, size_t stream_index) BOOST_NOEXCEPT;
 
 private:
-  struct Subtitle
-  {
-    double start;
-    double stop;
-    std::vector<std::string> text_lines;
+  struct Message {
+    struct Stop {};
+    struct Flush
+    {
+      std::deque<Subtitle> subtitles;
+    };
+    struct PushSubtitle
+    {
+      Subtitle subtitle;
+    };
   };
 
   void Process();
   void RenderLoop(const std::string& font_path, float font_size, bool centered, OMXClock* clock);
   std::vector<std::string> GetTextLines(OMXPacket *pkt);
+  void FlushRenderer();
 
 #ifndef NDEBUG
   bool m_open;
 #endif
 
-  COMXOverlayCodecText                   m_subtitle_codec;
-  boost::circular_buffer<Subtitle>       m_subtitle_queue;
-  std::mutex                             m_subtitle_queue_lock;
-  std::atomic<bool>                      m_thread_stopped;
-  std::atomic<bool>                      m_flush;
-  std::string                            m_font_path;
-  float                                  m_font_size;
-  bool                                   m_centered;
-  OMXClock*                              m_av_clock;
+  COMXOverlayCodecText                          m_subtitle_codec;
+  std::vector<Subtitle>                         m_external_subtitles;
+  std::vector<boost::circular_buffer<Subtitle>> m_subtitle_queues;
+  Mailbox<Message::Stop,
+          Message::Flush,
+          Message::PushSubtitle>                m_mailbox;
+  bool                                          m_visible;
+  size_t                                        m_active_index;
+  int                                           m_delay;
+  std::atomic<bool>                             m_thread_stopped;
+  std::string                                   m_font_path;
+  float                                         m_font_size;
+  bool                                          m_centered;
+  OMXClock*                                     m_av_clock;
 };

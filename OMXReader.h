@@ -128,7 +128,9 @@ protected:
   AVIOContext               *m_ioContext;
   bool                      m_eof;
   OMXChapter                m_chapters[MAX_OMX_CHAPTERS];
-  OMXStream                 m_streams[MAX_STREAMS];
+  public: 
+    OMXStream          m_streams[MAX_STREAMS];
+  protected:
   int                       m_chapter_count;
   double                    m_iCurrentPts;
   int                       m_speed;
@@ -179,6 +181,7 @@ public:
   bool SeekChapter(int chapter, double* startpts);
   int GetAudioIndex() { return (m_audio_index >= 0) ? m_streams[m_audio_index].index : -1; };
   int GetSubtitleIndex() { return (m_subtitle_index >= 0) ? m_streams[m_subtitle_index].index : -1; };
+  int GetRelativeIndex(int index) {return m_streams[index].index;}
   int GetStreamLength();
   static double NormalizeFrameduration(double frameduration);
   bool IsMpegVideo() { return m_bMpeg; };
