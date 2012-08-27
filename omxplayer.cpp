@@ -71,7 +71,7 @@ int               m_use_hw_audio        = false;
 std::string       m_external_subtitles_path;
 bool              m_has_external_subtitles = false;
 std::string       m_font_path           = "/usr/share/fonts/truetype/freefont/FreeSans.ttf";
-float             m_font_size           = 0.055f;
+float             m_font_size           = 0.050f;
 bool              m_centered            = false;
 bool              m_Pause               = false;
 OMXReader         m_omx_reader;
@@ -154,7 +154,7 @@ void PrintSubtitleInfo()
          count,
          m_has_subtitle && m_player_subtitles.GetVisible() ? " on" : "off", 
          index,
-         m_has_subtitle && m_player_subtitles.GetDelay());
+         m_has_subtitle ? m_player_subtitles.GetDelay() : 0);
 }
 
 void SetSpeed(int iSpeed)
@@ -187,7 +187,7 @@ void FlushStreams(double pts)
     m_player_audio.Flush();
 
   if(m_has_subtitle)
-    m_player_subtitles.Flush();
+    m_player_subtitles.Flush(pts);
 
   if(m_omx_pkt)
   {
@@ -395,10 +395,10 @@ int main(int argc, char *argv[])
         m_dump_format = true;
         break;
       case 't':
-        m_subtitle_index = atoi(optarg) - 1;
-        if(m_subtitle_index < 0)
-          m_subtitle_index = 0;
-        m_show_subtitle = true;
+                      // m_subtitle_index = atoi(optarg) - 1;
+                      // if(m_subtitle_index < 0)
+                      //   m_subtitle_index = 0;
+                      // m_show_subtitle = true;
         break;
       case 'n':
         m_audio_index_use = atoi(optarg) - 1;
@@ -424,8 +424,8 @@ int main(int argc, char *argv[])
       case 0x103: // --subtitles
         m_external_subtitles_path = optarg;
         m_has_external_subtitles = true;
-        m_use_external_subtitles = true;
-        m_show_subtitle = true;
+                                    // m_use_external_subtitles = true;
+                                    // m_show_subtitle = true;
         break;
       case 0:
         break;
@@ -507,12 +507,12 @@ int main(int argc, char *argv[])
     goto do_exit;
 
   {
-    std::vector<Subtitles> external_subtitles;
+    std::vector<Subtitle> external_subtitles;
     if(m_has_external_subtitles &&
-       !ReadSrt(m_external_subtitles_path, external_subtitles)
+       !ReadSrt(m_external_subtitles_path, external_subtitles))
     {
        puts("Unable to open subtitle file.");
-       goto exit;
+       goto do_exit;
     }
 
     if(m_has_subtitle &&
@@ -525,17 +525,20 @@ int main(int argc, char *argv[])
       goto do_exit;
   }
 
+  if(m_has_subtitle && !m_has_external_subtitles)
+    m_player_subtitles.SetUseExternalSubtitles(false);
+
   // This is an upper bound check on the subtitle limits. When we pulled the subtitle
   // index from the user we check to make sure that the value is larger than zero, but
   // we couldn't know without scanning the file if it was too high. If this is the case
   // then we replace the subtitle index with the maximum value possible.
-  if(m_has_subtitle && m_subtitle_index >= m_omx_reader.SubtitleStreamCount())
-  {
-    m_subtitle_index = m_omx_reader.SubtitleStreamCount() - 1;
-  }
+                // if(m_has_subtitle && m_subtitle_index >= m_omx_reader.SubtitleStreamCount())
+                // {
+                //   m_subtitle_index = m_omx_reader.SubtitleStreamCount() - 1;
+                // }
 
-  if(m_use_external_subtitles)
-    m_subtitle_index = 0;
+                // if(m_use_external_subtitles)
+                //   m_subtitle_index = 0;
 
   m_omx_reader.GetHints(OMXSTREAM_AUDIO, m_hints_audio);
 
@@ -545,7 +548,7 @@ int main(int argc, char *argv[])
 
   m_av_clock->SetSpeed(DVD_PLAYSPEED_NORMAL);
   m_av_clock->OMXStateExecute();
-  m_av_clock->OMXStart();
+  m_av_clock->OMXStart(0.0);
 
   struct timespec starttime, endtime;
 
@@ -645,7 +648,7 @@ int main(int argc, char *argv[])
           else
           {
             auto new_index = m_player_subtitles.GetActiveStream() + 1;
-            if(new_index < m_omx_reader.SubtitleStreamCount())
+            if(new_index < (size_t) m_omx_reader.SubtitleStreamCount())
             {
               m_player_subtitles.SetActiveStream(new_index);
               PrintSubtitleInfo();
@@ -728,6 +731,11 @@ int main(int argc, char *argv[])
       double seek_pos     = 0;
       double pts          = 0;
 
+      if(m_has_subtitle)
+        m_player_subtitles.Pause();
+
+      m_av_clock->OMXStop();
+
       pts = m_av_clock->GetPTS();
 
       seek_pos = (pts / DVD_TIME_BASE) + m_incr;
@@ -744,6 +752,11 @@ int main(int argc, char *argv[])
       if(m_has_video && !m_player_video.Open(m_hints_video, m_av_clock, m_Deinterlace,  m_bMpeg, 
                                          m_hdmi_clock_sync, m_thread_player, m_display_aspect))
         goto do_exit;
+
+      m_av_clock->OMXStart(startpts);
+      
+      if(m_has_subtitle)
+        m_player_subtitles.Play();
     }
 
     /* player got in an error state */
@@ -836,7 +849,7 @@ int main(int argc, char *argv[])
         OMXClock::OMXSleep(10);
     }
     else if(m_has_subtitle && m_omx_pkt &&
-            m_omx_pkt->codec_type == AVMEDIA_TYPE_SUBTITLES)
+            m_omx_pkt->codec_type == AVMEDIA_TYPE_SUBTITLE)
     {
       auto result = m_player_subtitles.AddPacket(m_omx_pkt,
                       m_omx_reader.GetRelativeIndex(m_omx_pkt->stream_index));

@@ -23,13 +23,12 @@
 #include "OMXClock.h"
 #include "OMXOverlayCodecText.h"
 #include "Subtitle.h"
-#include "Mailbox.h"
+#include "utils/Mailbox.h"
 
 #include <boost/config.hpp>
 #include <boost/circular_buffer.hpp>
 #include <atomic>
 #include <string>
-#include <deque>
 #include <vector>
 
 class OMXPlayerSubtitles : public OMXThread
@@ -46,10 +45,41 @@ public:
             bool centered,
             OMXClock* clock) BOOST_NOEXCEPT;
   void Close() BOOST_NOEXCEPT;
-  void Flush() BOOST_NOEXCEPT;
+  void Flush(double pts) BOOST_NOEXCEPT;
+  void Play() BOOST_NOEXCEPT;
+  void Pause() BOOST_NOEXCEPT;
+
   void SetVisible(bool visible) BOOST_NOEXCEPT;
+
+  bool GetVisible() BOOST_NOEXCEPT
+  {
+    assert(m_open);
+    return m_visible;
+  }
   void SetActiveStream(size_t index) BOOST_NOEXCEPT;
+
+  size_t GetActiveStream() BOOST_NOEXCEPT
+  {
+    assert(m_open);
+    return m_active_index;
+  }
+
   void SetDelay(int value) BOOST_NOEXCEPT;
+
+  int GetDelay() BOOST_NOEXCEPT
+  {
+    assert(m_open);
+    return m_delay;
+  }
+
+  void SetUseExternalSubtitles(bool use) BOOST_NOEXCEPT;
+
+  bool GetUseExternalSubtitles() BOOST_NOEXCEPT
+  {
+    assert(m_open);
+    return m_use_external_subtitles;
+  }
+
   bool AddPacket(OMXPacket *pkt, size_t stream_index) BOOST_NOEXCEPT;
 
 private:
@@ -57,11 +87,21 @@ private:
     struct Stop {};
     struct Flush
     {
-      std::deque<Subtitle> subtitles;
+      std::vector<Subtitle> subtitles;
     };
-    struct PushSubtitle
+    struct Play {};
+    struct Pause {};
+    struct Push
     {
       Subtitle subtitle;
+    };
+    struct Seek
+    {
+      int time;
+    };
+    struct SetDelay
+    {
+      int value;
     };
   };
 
@@ -79,8 +119,13 @@ private:
   std::vector<boost::circular_buffer<Subtitle>> m_subtitle_queues;
   Mailbox<Message::Stop,
           Message::Flush,
-          Message::PushSubtitle>                m_mailbox;
+          Message::Play,
+          Message::Pause,
+          Message::Push,
+          Message::Seek,
+          Message::SetDelay>                    m_mailbox;
   bool                                          m_visible;
+  bool                                          m_use_external_subtitles;
   size_t                                        m_active_index;
   int                                           m_delay;
   std::atomic<bool>                             m_thread_stopped;

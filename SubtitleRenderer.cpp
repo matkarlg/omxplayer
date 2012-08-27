@@ -331,7 +331,7 @@ initialize_fonts(const std::string& font_path, float font_size) {
   box_h_padding_ = line_height_/5.0f + 0.5f;
 
 
-  constexpr float border_thickness = 0.045f;
+  constexpr float border_thickness = 0.044f;
   ENFORCE(!FT_Stroker_New(ft_library_, &ft_stroker_));
   FT_Stroker_Set(ft_stroker_,
                  line_height_*border_thickness*64.0f,
