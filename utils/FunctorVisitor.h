@@ -31,7 +31,8 @@
 
 #include "utils/traits.hpp"
 
-namespace {
+namespace functor_visitor_impl
+{
   template <typename T>
   using arg_type = typename utils::function_traits<T>::template arg<0>::type;
 
@@ -67,11 +68,27 @@ namespace {
     : fun(std::forward<U>(u))
     {}
 
-    void operator()(const arg_type<T>& t) {
+    void operator()(typename std::remove_cv<arg_type<T>>::type& t) {
+      fun(t);
+    }
+
+    void operator()(const typename std::remove_cv<arg_type<T>>::type& t) {
+      fun(t);
+    }
+
+    void operator()(const volatile arg_type<T>& t) {
       fun(t);
     }
 
     void operator()(typename std::remove_cv<arg_type<T>>::type&& t) {
+      fun(std::move(t));
+    }
+
+    void operator()(const typename std::remove_cv<arg_type<T>>::type&& t) {
+      fun(std::move(t));
+    }
+
+    void operator()(const volatile arg_type<T>&& t) {
       fun(std::move(t));
     }
   };
@@ -87,13 +104,16 @@ struct functor_visitor<> {
 };
 
 template <typename T, typename... Ts>
-struct functor_visitor<T, Ts...> : op_call<T>, functor_visitor<Ts...> {
+struct functor_visitor<T, Ts...>
+: functor_visitor_impl::op_call<T>,
+  functor_visitor<Ts...>
+{
   template <typename U, typename... Us>
   functor_visitor(U&& u, Us&&... us)
-  : op_call<T>(std::forward<U>(u)),
+  : functor_visitor_impl::op_call<T>(std::forward<U>(u)),
     functor_visitor<Ts...>(std::forward<Us>(us)...)
   {}
 
   using functor_visitor<Ts...>::operator();
-  using op_call<T>::operator();
+  using functor_visitor_impl::op_call<T>::operator();
 };
