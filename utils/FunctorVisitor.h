@@ -28,87 +28,72 @@
 
 #include <type_traits>
 #include <utility>
-#include <boost/function_types/parameter_types.hpp>
-#include <boost/mpl/back.hpp>
 
-template <typename U>
-struct functor_argument_type {
-  typedef typename boost::mpl::back<
-    typename boost::function_types::parameter_types<
-      decltype(&U::operator())
-    >::type
-  >::type type;
-};
+#include "utils/traits.hpp"
 
-template <typename T>
-struct argument_type {
-  typedef typename functor_argument_type<typename std::remove_reference<T>::type>::type type;
-};
+namespace {
+  template <typename T>
+  using arg_type = typename utils::function_traits<T>::template arg<0>::type;
 
-template <typename, bool is_reference_type>
-class operator_call;
+  template <typename, typename = void>
+  class op_call;
 
-template <typename T>
-class operator_call<T, true> {
-  typedef typename argument_type<T>::type arg_type;
-  T fun;
-public:
-  template <typename U>
-  operator_call(U&& u)
-  : fun(std::forward<U>(u))
-  {}
+  template <typename T>
+  class op_call<T, typename std::enable_if<
+                     std::is_reference<arg_type<T>>::value>::type>
+  {
+    T fun;
 
-  void operator()(arg_type t) {
-    fun(std::forward<arg_type>(t));
-  }
-};
+  public:
+    template <typename U>
+    op_call(U&& u)
+    : fun(std::forward<U>(u))
+    {}
 
-template <typename T>
-class operator_call<T, false> {
-  typedef typename argument_type<T>::type arg_type;
-  T fun;
-public:
-  template <typename U>
-  operator_call(U&& u)
-  : fun(std::forward<U>(u))
-  {}
+    void operator()(arg_type<T> t) {
+      fun(std::forward<arg_type<T>>(t));
+    }
+  };
 
-  void operator()(const arg_type& t) {
-    fun(t);
-  }
+  template <typename T>
+  class op_call<T, typename std::enable_if<
+                     !std::is_reference<arg_type<T>>::value>::type>
+  {
+    T fun;
 
-  void operator()(typename std::remove_cv<arg_type>::type&& t) {
-    fun(std::move(t));
-  }
-};
+  public:
+    template <typename U>
+    op_call(U&& u)
+    : fun(std::forward<U>(u))
+    {}
+
+    void operator()(const arg_type<T>& t) {
+      fun(t);
+    }
+
+    void operator()(typename std::remove_cv<arg_type<T>>::type&& t) {
+      fun(std::move(t));
+    }
+  };
+}
 
 template <typename... Ts>
-class functor_visitor;
+struct functor_visitor;
 
 template <>
-class functor_visitor<> {
-public:
+struct functor_visitor<> {
   void operator()(struct dummy_type);
   typedef void result_type;
 };
 
 template <typename T, typename... Ts>
-class functor_visitor<T, Ts...>
-: public operator_call<T,
-         std::is_reference<typename argument_type<T>::type>::value>,
-  public functor_visitor<Ts...>
-{
-public:
-
+struct functor_visitor<T, Ts...> : op_call<T>, functor_visitor<Ts...> {
   template <typename U, typename... Us>
   functor_visitor(U&& u, Us&&... us)
-  : operator_call<T,
-      std::is_reference<typename argument_type<T>::type>::value>
-      (std::forward<U>(u)),
+  : op_call<T>(std::forward<U>(u)),
     functor_visitor<Ts...>(std::forward<Us>(us)...)
   {}
 
   using functor_visitor<Ts...>::operator();
-  using operator_call<T,
-        std::is_reference<typename argument_type<T>::type>::value>::operator();
+  using op_call<T>::operator();
 };

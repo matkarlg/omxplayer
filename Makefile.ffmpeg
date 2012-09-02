@@ -7,63 +7,63 @@ WORK=$(PWD)
 all: checkout configure compile
 
 copy:
-	find ffmpeg -name '*.so*' -exec cp {} . \;
-	$(HOST)-strip *.so*
+  find ffmpeg -name '*.so*' -exec cp {} . \;
+  $(HOST)-strip *.so*
 
 compile: 
-	cd ffmpeg; \
-	make -j9
+  cd ffmpeg; \
+  make -j9
 
 configure: 
-	cd ffmpeg; \
-	CFLAGS="$(CFLAGS) ${INCLUDES}" \
-	LDFLAGS="" \
+  cd ffmpeg; \
+  CFLAGS="$(CFLAGS) ${INCLUDES}" \
+  LDFLAGS="" \
   ./configure \
-			--extra-cflags="-mfpu=vfp -mfloat-abi=$(FLOAT) -mno-apcs-stack-check -mstructure-size-boundary=32 -mno-sched-prolog" \
-			--enable-cross-compile \
-			--enable-shared \
-			--disable-static \
-			--arch=arm \
-			--cpu=arm1176jzf-s \
-			--target-os=linux \
-			--disable-muxers \
-			--enable-muxer=spdif \
-			--enable-muxer=adts \
-			--disable-encoders \
-			--enable-encoder=ac3 \
-			--enable-encoder=aac \
-			--disable-decoder=mpeg_xvmc \
-			--disable-devices \
-			--disable-ffprobe \
-			--disable-ffplay \
-			--disable-ffserver \
-			--disable-ffmpeg \
-			--enable-shared \
-			--disable-doc \
-			--enable-postproc \
-			--enable-gpl \
-			--enable-protocol=http \
-			--enable-pthreads \
-			--disable-runtime-cpudetect \
-			--enable-pic \
-			--disable-armv5te \
-			--disable-neon \
-			--enable-armv6t2 \
-			--enable-armv6 \
-			--enable-armvfp \
-			--enable-hardcoded-tables \
-			--disable-runtime-cpudetect \
-			--disable-debug \
-			--cross-prefix=$(HOST)-
+      --extra-cflags="-mfpu=vfp -mfloat-abi=$(FLOAT) -mno-apcs-stack-check -mstructure-size-boundary=32 -mno-sched-prolog" \
+      --enable-cross-compile \
+      --enable-shared \
+      --disable-static \
+      --arch=arm \
+      --cpu=arm1176jzf-s \
+      --target-os=linux \
+      --disable-muxers \
+      --enable-muxer=spdif \
+      --enable-muxer=adts \
+      --disable-encoders \
+      --enable-encoder=ac3 \
+      --enable-encoder=aac \
+      --disable-decoder=mpeg_xvmc \
+      --disable-devices \
+      --disable-ffprobe \
+      --disable-ffplay \
+      --disable-ffserver \
+      --disable-ffmpeg \
+      --enable-shared \
+      --disable-doc \
+      --enable-postproc \
+      --enable-gpl \
+      --enable-protocol=http \
+      --enable-pthreads \
+      --disable-runtime-cpudetect \
+      --enable-pic \
+      --disable-armv5te \
+      --disable-neon \
+      --enable-armv6t2 \
+      --enable-armv6 \
+      --enable-armvfp \
+      --enable-hardcoded-tables \
+      --disable-runtime-cpudetect \
+      --disable-debug \
+      --cross-prefix=$(HOST)-
 
 clean:
-	@rm -rf ffmpeg
+  @rm -rf ffmpeg
 
 checkout: 
-	git clone git://git.videolan.org/ffmpeg.git ffmpeg; \
-	cd ffmpeg; git checkout master;	git checkout 13a7bd70c8d94c5a46c14e7ac23a170b77eff52e
+  git clone git://git.videolan.org/ffmpeg.git ffmpeg; \
+  cd ffmpeg; git checkout master; git checkout 13a7bd70c8d94c5a46c14e7ac23a170b77eff52e
 
 install:
-	cd ffmpeg; make -j9 DESTDIR="$(WORK)/ffmpeg_compiled" install
-	$(HOST)-strip ffmpeg_compiled/usr/local/lib/*.so
+  cd ffmpeg; make -j9 DESTDIR="$(WORK)/ffmpeg_compiled" install
+  $(HOST)-strip ffmpeg_compiled/usr/local/lib/*.so
 

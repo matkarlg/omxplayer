@@ -46,7 +46,7 @@ public:
             OMXClock* clock) BOOST_NOEXCEPT;
   void Close() BOOST_NOEXCEPT;
   void Flush(double pts) BOOST_NOEXCEPT;
-  void Play() BOOST_NOEXCEPT;
+  void Resume() BOOST_NOEXCEPT;
   void Pause() BOOST_NOEXCEPT;
 
   void SetVisible(bool visible) BOOST_NOEXCEPT;
@@ -56,11 +56,13 @@ public:
     assert(m_open);
     return m_visible;
   }
+  
   void SetActiveStream(size_t index) BOOST_NOEXCEPT;
 
   size_t GetActiveStream() BOOST_NOEXCEPT
   {
     assert(m_open);
+    assert(!m_subtitle_caches.empty());
     return m_active_index;
   }
 
@@ -89,8 +91,6 @@ private:
     {
       std::vector<Subtitle> subtitles;
     };
-    struct Play {};
-    struct Pause {};
     struct Push
     {
       Subtitle subtitle;
@@ -102,6 +102,10 @@ private:
     struct SetDelay
     {
       int value;
+    };
+    struct SetPaused
+    {
+      bool value;
     };
   };
 
@@ -116,14 +120,14 @@ private:
 
   COMXOverlayCodecText                          m_subtitle_codec;
   std::vector<Subtitle>                         m_external_subtitles;
-  std::vector<boost::circular_buffer<Subtitle>> m_subtitle_queues;
+  std::vector<boost::circular_buffer<Subtitle>> m_subtitle_caches;
   Mailbox<Message::Stop,
           Message::Flush,
-          Message::Play,
-          Message::Pause,
           Message::Push,
           Message::Seek,
+          Message::SetPaused,
           Message::SetDelay>                    m_mailbox;
+  bool                                          m_paused;
   bool                                          m_visible;
   bool                                          m_use_external_subtitles;
   size_t                                        m_active_index;

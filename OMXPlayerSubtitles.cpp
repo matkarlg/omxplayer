@@ -31,16 +31,18 @@
 constexpr int RENDER_LOOP_SLEEP = 100;
 
 OMXPlayerSubtitles::OMXPlayerSubtitles() BOOST_NOEXCEPT
-:
-#ifndef NDEBUG
-  m_open(),
-#endif
-  m_thread_stopped(true),
-  m_active_index(), /////////////////////////////////////////////////////////////////////////////////7
+: m_paused(),
+  m_visible(),
+  m_use_external_subtitles(),
+  m_active_index(),
   m_delay(),
+  m_thread_stopped(),
   m_font_size(),
   m_centered(),
-  m_av_clock()
+  m_av_clock(),
+#ifndef NDEBUG
+  m_open()
+#endif
 {}
 
 OMXPlayerSubtitles::~OMXPlayerSubtitles() BOOST_NOEXCEPT
@@ -57,18 +59,20 @@ bool OMXPlayerSubtitles::Open(size_t stream_count,
 {
   assert(!m_open);
 
-  m_subtitle_queues.resize(stream_count, boost::circular_buffer<Subtitle>(32));
+  m_subtitle_caches.resize(stream_count, boost::circular_buffer<Subtitle>(32));
+  m_external_subtitles = std::move(external_subtitles);
+  
+  m_paused = false;
   m_visible = true;
   m_use_external_subtitles = true;
   m_active_index = 0;
   m_delay = 0;
   m_thread_stopped.store(false, std::memory_order_relaxed);
 
-  m_external_subtitles = std::move(external_subtitles);
   m_font_path = font_path;
   m_font_size = font_size;
   m_centered = centered;
-  m_av_clock  = clock;
+  m_av_clock = clock;
 
   if(!Create())
     return false;
@@ -91,7 +95,7 @@ void OMXPlayerSubtitles::Close() BOOST_NOEXCEPT
     m_mailbox.clear();
   }
 
-  m_subtitle_queues.clear();
+  m_subtitle_caches.clear();
 
 #ifndef NDEBUG
   m_open = false;
@@ -173,12 +177,20 @@ RenderLoop(const std::string& font_path, float font_size, bool centered, OMXCloc
 
   for(;;)
   {
-    std::chrono::milliseconds timeout(RENDER_LOOP_SLEEP);
+    std::chrono::milliseconds timeout;
 
-    if(expensive_op)
+    if(paused)
+    {
+      timeout = std::chrono::milliseconds(INT_MAX);
+    }
+    else if(expensive_op)
     {
       expensive_op = false;
       timeout = std::chrono::milliseconds(0);
+    }
+    else
+    {
+      timeout = std::chrono::milliseconds(RENDER_LOOP_SLEEP);
     }
 
     m_mailbox.receive_wait(timeout,
@@ -191,18 +203,14 @@ RenderLoop(const std::string& font_path, float font_size, bool centered, OMXCloc
         subtitles = std::move(args.subtitles);
         Seek(GetCurrentTime());
       },
-      [&](Message::Play&&)
-      {
-        paused = false;
-      },
-      [&](Message::Pause&&)
-      {
-        paused = true;
-      },
       [&](Message::Seek&& args)
       {
         printf("Current time: %i, Seek: %i\n", GetCurrentTime(), args.time);
         Seek(args.time);
+      },
+      [&](Message::SetPaused&& args)
+      {
+        paused = args.value;
       },
       [&](Message::SetDelay&& args)
       {
@@ -215,6 +223,11 @@ RenderLoop(const std::string& font_path, float font_size, bool centered, OMXCloc
       });
 
     if(exit) break;
+
+    static int iii = 0;
+
+    printf("iter %i\n", ++iii);
+
     if(paused) continue;
 
     auto now = GetCurrentTime() - delay;
@@ -262,11 +275,7 @@ RenderLoop(const std::string& font_path, float font_size, bool centered, OMXCloc
 
 void OMXPlayerSubtitles::FlushRenderer()
 {
-  if(!GetVisible())
-  {
-    m_mailbox.send(Message::Flush{});
-    return;
-  }
+  assert(GetVisible());
 
   if(GetUseExternalSubtitles())
   {
@@ -275,8 +284,8 @@ void OMXPlayerSubtitles::FlushRenderer()
   else
   {
     Message::Flush flush;
-    assert(!m_subtitle_queues.empty());
-    for(auto& s : m_subtitle_queues[m_active_index])
+    assert(!m_subtitle_caches.empty());
+    for(auto& s : m_subtitle_caches[m_active_index])
       flush.subtitles.push_back(s);
     m_mailbox.send(std::move(flush));
   }
@@ -286,7 +295,7 @@ void OMXPlayerSubtitles::Flush(double pts) BOOST_NOEXCEPT
 {
   assert(m_open);
 
-  for(auto& q : m_subtitle_queues)
+  for(auto& q : m_subtitle_caches)
     q.clear();
 
   if(GetVisible())
@@ -298,25 +307,28 @@ void OMXPlayerSubtitles::Flush(double pts) BOOST_NOEXCEPT
   }
 }
 
-void OMXPlayerSubtitles::Play() BOOST_NOEXCEPT
+void OMXPlayerSubtitles::Resume() BOOST_NOEXCEPT
 {
   assert(m_open);
-  m_mailbox.send(Message::Play{});
+
+  m_paused = false;
+  m_mailbox.send(Message::SetPaused{false});
 }
 
 void OMXPlayerSubtitles::Pause() BOOST_NOEXCEPT
 {
   assert(m_open);
-  m_mailbox.send(Message::Pause{});
+
+  m_paused = true;
+  m_mailbox.send(Message::SetPaused{true});
 }
 
 void OMXPlayerSubtitles::SetUseExternalSubtitles(bool use) BOOST_NOEXCEPT
 {
   assert(m_open);
-  assert(use || !m_subtitle_queues.empty());
+  assert(use || !m_subtitle_caches.empty());
 
   m_use_external_subtitles = use;
-
   if(GetVisible())
     FlushRenderer();
 }
@@ -324,6 +336,7 @@ void OMXPlayerSubtitles::SetUseExternalSubtitles(bool use) BOOST_NOEXCEPT
 void OMXPlayerSubtitles::SetDelay(int value) BOOST_NOEXCEPT
 {
   assert(m_open);
+
   m_delay = value;
   m_mailbox.send(Message::SetDelay{value});
 }
@@ -331,15 +344,25 @@ void OMXPlayerSubtitles::SetDelay(int value) BOOST_NOEXCEPT
 void OMXPlayerSubtitles::SetVisible(bool visible) BOOST_NOEXCEPT
 {
   assert(m_open);
-  
+
+  if(visible)
+  {
+    if (!m_visible)
+      FlushRenderer();
+  }
+  else
+  {
+    if(m_visible)
+      m_mailbox.send(Message::Flush{});
+  }
+
   m_visible = visible;
-  FlushRenderer();
 }
 
 void OMXPlayerSubtitles::SetActiveStream(size_t index) BOOST_NOEXCEPT
 {
   assert(m_open);
-  assert(index < m_subtitle_queues.size());
+  assert(index < m_subtitle_caches.size());
 
   m_active_index = index;
   if(!GetUseExternalSubtitles() && GetVisible())
@@ -375,33 +398,33 @@ std::vector<std::string> OMXPlayerSubtitles::GetTextLines(OMXPacket *pkt)
 bool OMXPlayerSubtitles::AddPacket(OMXPacket *pkt, size_t stream_index) BOOST_NOEXCEPT
 {
   assert(m_open);
-  assert(stream_index < m_subtitle_queues.size());
+  assert(stream_index < m_subtitle_caches.size());
 
   if(!pkt)
     return false;
 
-  // if(m_thread_stopped.load(std::memory_order_relaxed))
-  // {
-  //   // Rendering thread has stopped, throw away the packet
-  //   CLog::Log(LOGWARNING, "Subtitle rendering thread has stopped, discarding packet");
-  //   OMXReader::FreePacket(pkt);
-  //   return true;
-  // }
+  if(m_thread_stopped.load(std::memory_order_relaxed))
+  {
+    // Rendering thread has stopped, throw away the packet
+    CLog::Log(LOGWARNING, "Subtitle rendering thread has stopped, discarding packet");
+    OMXReader::FreePacket(pkt);
+    return true;
+  }
 
-  // Center the presentation time on the requested timestamps
+  // Center the actual display time on the PTS
   auto start = static_cast<int>(pkt->pts/1000) - RENDER_LOOP_SLEEP/2;
   auto stop = start + static_cast<int>(pkt->duration/1000);
   auto text_lines = GetTextLines(pkt);
 
-  if (!m_subtitle_queues[stream_index].empty() &&
-    start < m_subtitle_queues[stream_index].back().start)
+  if (!m_subtitle_caches[stream_index].empty() &&
+    start < m_subtitle_caches[stream_index].back().start)
   {
-    start = m_subtitle_queues[stream_index].back().start;
+    start = m_subtitle_caches[stream_index].back().start;
   }
 
-  m_subtitle_queues[stream_index].push_back(
+  m_subtitle_caches[stream_index].push_back(
     Subtitle(start, stop, std::vector<std::string>()));
-  m_subtitle_queues[stream_index].back().text_lines = text_lines;
+  m_subtitle_caches[stream_index].back().text_lines = text_lines;
 
   if(!GetUseExternalSubtitles() &&
      GetVisible() &&
