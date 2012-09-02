@@ -72,6 +72,10 @@ namespace functor_visitor_impl
       fun(t);
     }
 
+    void operator()(volatile typename std::remove_cv<arg_type<T>>::type& t) {
+      fun(t);
+    }
+
     void operator()(const typename std::remove_cv<arg_type<T>>::type& t) {
       fun(t);
     }
@@ -81,6 +85,10 @@ namespace functor_visitor_impl
     }
 
     void operator()(typename std::remove_cv<arg_type<T>>::type&& t) {
+      fun(std::move(t));
+    }
+
+    void operator()(volatile typename std::remove_cv<arg_type<T>>::type&& t) {
       fun(std::move(t));
     }
 
