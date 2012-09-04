@@ -92,9 +92,9 @@ void OMXPlayerSubtitles::Close() BOOST_NOEXCEPT
   {
     m_mailbox.send(Message::Stop{});
     StopThread();
-    m_mailbox.clear();
   }
 
+  m_mailbox.clear();
   m_subtitle_caches.clear();
 
 #ifndef NDEBUG
@@ -224,10 +224,6 @@ RenderLoop(const std::string& font_path, float font_size, bool centered, OMXCloc
 
     if(exit) break;
 
-    static int iii = 0;
-
-    printf("iter %i\n", ++iii);
-
     if(paused) continue;
 
     auto now = GetCurrentTime() - delay;
@@ -348,15 +344,19 @@ void OMXPlayerSubtitles::SetVisible(bool visible) BOOST_NOEXCEPT
   if(visible)
   {
     if (!m_visible)
+    {
+      m_visible = true;
       FlushRenderer();
+    }
   }
   else
   {
     if(m_visible)
+    {
+      m_visible = false;
       m_mailbox.send(Message::Flush{});
+    }
   }
-
-  m_visible = visible;
 }
 
 void OMXPlayerSubtitles::SetActiveStream(size_t index) BOOST_NOEXCEPT

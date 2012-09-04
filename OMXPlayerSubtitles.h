@@ -114,10 +114,6 @@ private:
   std::vector<std::string> GetTextLines(OMXPacket *pkt);
   void FlushRenderer();
 
-#ifndef NDEBUG
-  bool m_open;
-#endif
-
   COMXOverlayCodecText                          m_subtitle_codec;
   std::vector<Subtitle>                         m_external_subtitles;
   std::vector<boost::circular_buffer<Subtitle>> m_subtitle_caches;
@@ -137,4 +133,8 @@ private:
   float                                         m_font_size;
   bool                                          m_centered;
   OMXClock*                                     m_av_clock;
+
+#ifndef NDEBUG
+  bool m_open;
+#endif
 };

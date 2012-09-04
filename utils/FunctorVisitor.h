@@ -68,14 +68,6 @@ namespace functor_visitor_impl
     : fun(std::forward<U>(u))
     {}
 
-    void operator()(typename std::remove_cv<arg_type<T>>::type& t) {
-      fun(t);
-    }
-
-    void operator()(volatile typename std::remove_cv<arg_type<T>>::type& t) {
-      fun(t);
-    }
-
     void operator()(const typename std::remove_cv<arg_type<T>>::type& t) {
       fun(t);
     }

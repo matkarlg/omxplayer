@@ -29,6 +29,9 @@
 #include "ScopeExit.h"
 #include "Enforce.h"
 
+
+#include "benchmark.h"
+
 #include <VG/vgu.h>
 #include <cassert>
 
@@ -515,6 +518,7 @@ void SubtitleRenderer::clear() BOOST_NOEXCEPT {
 }
 
 void SubtitleRenderer::draw() BOOST_NOEXCEPT {
+  benchmark_start();
   clear();
 
   const auto n_lines = internal_lines_.size();
@@ -545,6 +549,7 @@ void SubtitleRenderer::draw() BOOST_NOEXCEPT {
   }
 
   prepared_ = false;
+  benchmark_end();
 }
 
 void SubtitleRenderer::swap_buffers() BOOST_NOEXCEPT {
