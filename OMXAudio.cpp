@@ -1061,6 +1061,25 @@ void COMXAudio::DoAudioWork()
   }
 }
 
+unsigned int COMXAudio::GetAudioRenderingLatency()
+{
+  OMX_PARAM_U32TYPE param;
+  OMX_INIT_STRUCTURE(param);
+  param.nPortIndex = m_omx_render.GetInputPort();
+
+  OMX_ERRORTYPE omx_err =
+    m_omx_render.GetConfig(OMX_IndexConfigAudioRenderingLatency, &param);
+
+  if(omx_err != OMX_ErrorNone)
+  {
+    CLog::Log(LOGERROR, "COMXAudio::GetAudioRenderingLatency: "
+                        "error getting OMX_IndexConfigAudioRenderingLatency\n");
+    return 0;
+  }
+
+  return param.nU32;
+}
+
 void COMXAudio::WaitCompletion()
 {
   if(!m_Initialized || m_Pause)
@@ -1101,6 +1120,14 @@ void COMXAudio::WaitCompletion()
     //   CLog::Log(LOGERROR, "%s::%s - wait for eos timed out\n", CLASSNAME, __func__);
     //   break;
     // }
+    OMXClock::OMXSleep(50);
+  }
+
+  while(true)
+  {
+    if(!GetAudioRenderingLatency();)
+      break;
+
     OMXClock::OMXSleep(50);
   }
 

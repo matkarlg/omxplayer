@@ -808,10 +808,10 @@ do_exit:
 
   if(!m_stop && !g_abort)
   {
-    if(m_has_video)
-      m_player_video.WaitCompletion();
-    else if(m_has_audio)
+    if(m_has_audio)
       m_player_audio.WaitCompletion();
+    else if(m_has_video)
+      m_player_video.WaitCompletion();
   }
 
   if(m_refresh)
