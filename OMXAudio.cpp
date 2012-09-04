@@ -1125,7 +1125,7 @@ void COMXAudio::WaitCompletion()
 
   while(true)
   {
-    if(!GetAudioRenderingLatency();)
+    if(!GetAudioRenderingLatency())
       break;
 
     OMXClock::OMXSleep(50);
