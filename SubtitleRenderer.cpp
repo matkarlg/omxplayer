@@ -34,6 +34,8 @@
 #include <cassert>
 #include <algorithm>
 
+#include "bcm_host.h"
+
 class BoxRenderer {
   VGPath path_;
   VGPaint paint_;

@@ -143,7 +143,8 @@ bool OMXReader::Open(std::string filename, bool dump_format)
   if(m_filename.substr(0, 8) == "shout://" )
     m_filename.replace(0, 8, "http://");
 
-  if(m_filename.substr(0,6) == "mms://" || m_filename.substr(0,7) == "http://" || 
+  if(m_filename.substr(0,6) == "mms://" || m_filename.substr(0,7) == "mmsh://" || m_filename.substr(0,7) == "mmst://" || m_filename.substr(0,7) == "mmsu://" ||
+      m_filename.substr(0,7) == "http://" || 
       m_filename.substr(0,7) == "rtmp://" || m_filename.substr(0,6) == "udp://" ||
       m_filename.substr(0,7) == "rtsp://" )
   {
@@ -246,8 +247,8 @@ bool OMXReader::Open(std::string filename, bool dump_format)
     }
   }
 
-  printf("file : %s result %d format %s audio streams %d video streams %d chapters %d subtitles %d\n", 
-      m_filename.c_str(), result, m_pFormatContext->iformat->name, m_audio_count, m_video_count, m_chapter_count, m_subtitle_count);
+  printf("file : %s result %d format %s audio streams %d video streams %d chapters %d subtitles %d length %d\n", 
+      m_filename.c_str(), result, m_pFormatContext->iformat->name, m_audio_count, m_video_count, m_chapter_count, m_subtitle_count, GetStreamLength() / 1000);
 
 
   m_speed       = DVD_PLAYSPEED_NORMAL;
